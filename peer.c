@@ -27,14 +27,12 @@
 #define MAX_LINE 1024
 
 int sock;
-struct sockaddr_in myaddr;
+bt_config_t config;
 
 void peer_run(bt_config_t *config);
 
 int main(int argc, char **argv)
 {
-  bt_config_t config;
-
   bt_init(&config, argc, argv);
 
   DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
@@ -110,12 +108,13 @@ void send_whohas(char *chunkfile)
 
   package_t* whohas_package;
   init_package(whohas_package, 0, 16, temp);
-  send_package(get_msg(whohas_package, 0));
-}
-
-int send_package(char* msg)
-{
-  spiffy_sendto(sock, msg, strlen(msg), 0, (struct sockaddr *)&myaddr, sizeof(myaddr));
+  char* msg = get_msg(whohas_package, 0);
+  bt_peer_t *peers = config.peers;
+  while(peers->next!=NULL)
+  {
+    spiffy_sendto(sock, msg, strlen(msg), 0, (struct sockaddr *)&peers->addr, sizeof(peers->addr));
+    peers = peers->next;
+  }
 }
 
 void handle_user_input(char *line, void *cbdata)
@@ -136,6 +135,7 @@ void handle_user_input(char *line, void *cbdata)
 
 void peer_run(bt_config_t *config)
 {
+  struct sockaddr_in myaddr;
   fd_set readfds;
   struct user_iobuf *userbuf;
 
