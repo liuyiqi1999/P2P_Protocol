@@ -1,15 +1,13 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 typedef struct slist_node
 {
     char *data;
     struct slist_node *next;
 } slist_node_t, *p_slist_node_t;
 
-p_slist_node_t new_slist_pnode(char* data)
-{
-    p_slist_node_t pnode;
-    pnode->data = data;
-    return pnode;
-}
+p_slist_node_t new_slist_pnode(char* data);
 
 typedef struct slist
 {

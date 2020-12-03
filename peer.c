@@ -73,17 +73,12 @@ void process_inbound_udp(int sock)
          buf);
 }
 
-void process_get(char *chunkfile, char *outputfile)
-{
-
-}
-
 void send_whohas(char *chunkfile)
 {
   char buf[MAX_LINE];
   FILE *fp;
-  int len;
-  slist *chunk_hashes;
+  slist *chunk_hashes = malloc(sizeof(slist));
+  
   slist_init(chunk_hashes);
 
   if ((fp = fopen(chunkfile, "r")) == NULL)
@@ -99,14 +94,14 @@ void send_whohas(char *chunkfile)
   char* data = (char *)malloc(4+chunk_num*4);
   char* temp = data;
   *(uint8_t *)data = chunk_num;
-  *(uint8_t *)(data+1) = NULL;
-  *(uint16_t *)(data+2) = NULL;
+  *(uint8_t *)(data+1) = 0;
+  *(uint16_t *)(data+2) = 0;
   for(int i=0;i<chunk_num;i++)
   {
-    *(uint32_t *)(data+4*(i+1)) = slist_pop_front(chunk_hashes);
+    *(uint32_t *)(data+4*(i+1)) = slist_pop_front(chunk_hashes)->data;
   }
 
-  package_t* whohas_package;
+  package_t* whohas_package = malloc(sizeof(package_t));
   init_package(whohas_package, 0, 16, temp);
   char* msg = get_msg(whohas_package, 0);
   bt_peer_t *peers = config.peers;
@@ -116,6 +111,12 @@ void send_whohas(char *chunkfile)
     peers = peers->next;
   }
 }
+
+void process_get(char *chunkfile, char *outputfile)
+{
+  send_whohas(chunkfile);
+}
+
 
 void handle_user_input(char *line, void *cbdata)
 {
