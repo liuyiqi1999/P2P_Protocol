@@ -39,15 +39,16 @@ char *get_msg(package_t *package, uint8_t type)
         exit(1);
     }
     char *tempc = c;
-    *(uint16_t *)c = package->magic;
+    *(uint16_t *)c = ntohs(package->magic);
     *(uint8_t *)(c + 2) = package->version;
     *(uint8_t *)(c + 3) = package->package_type;
-    *(uint16_t *)(c + 4) = package->header_length;
-    *(uint16_t *)(c + 6) = package->total_packet_length;
-    *(u_int32_t *)(c + 8) = package->seq_number;
-    *(u_int32_t *)(c + 10) = package->ack_number;
-    while(*package->body != '\0')
+    *(uint16_t *)(c + 4) = ntohs(package->header_length);
+    *(uint16_t *)(c + 6) = ntohs(package->total_packet_length);
+    *(u_int32_t *)(c + 8) = ntohl(package->seq_number);
+    *(u_int32_t *)(c + 12) = ntohl(package->ack_number);
+    while (*package->body != '\0')
     {
+        c = c + 16;
         *c++ = *package->body++;
     }
     return tempc;
