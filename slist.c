@@ -69,11 +69,41 @@ p_slist_node_t slist_find(slist *s, int index)
     else
     {
         p_slist_node_t tmp = s->head;
-        for(int i=0;i<index;i++)
+        for (int i = 0; i < index; i++)
         {
             tmp = tmp->next;
         }
         return tmp;
+    }
+}
+
+int slist_search(slist *s, char *data, int length)
+{
+    assert(s);
+    if (s->head == NULL)
+    {
+        return NULL;
+    }
+    else
+    {
+        p_slist_node_t tmp = s->head;
+        int count = 0;
+        while (tmp != NULL)
+        {
+            DPRINTF(4,"tmp->data: %20.20s, data: %20.20s\n", tmp->data, data);
+            if (strncmp(tmp->data, data, 20) == 0)
+            {
+                return count;
+            }
+            if(tmp->next==NULL) return -1;
+            else
+            {
+                tmp = tmp->next;
+                count++;
+            }
+            
+        }
+        return -1;
     }
 }
 

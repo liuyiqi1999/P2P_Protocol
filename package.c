@@ -13,6 +13,7 @@ int init_package(package_t *package, uint8_t type, uint16_t header_len, char *bo
     switch (type)
     {
     case 0: //WHOHAS
+    case 1: //IHAVE
         package->total_packet_length = header_len + 4 + chunk_num * 20;
         package->seq_number = 0;
         package->ack_number = 0;
@@ -45,7 +46,9 @@ char *get_msg(package_t *package, uint8_t type)
     *(uint16_t *)(c + 6) = htons(package->total_packet_length);
     *(uint32_t *)(c + 8) = htonl(package->seq_number);
     *(uint32_t *)(c + 12) = htonl(package->ack_number);
+    DPRINTF(4, "get msg, after header\n");
     c = c + package->header_length;
+    DPRINTF(4, "before body\n");
     memcpy(c,package->body,(package->total_packet_length-package->header_length));
     DPRINTF(4,"sending header length %d\n", *(uint16_t*)(tempc+4));
     return tempc;

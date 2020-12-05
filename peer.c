@@ -28,11 +28,14 @@
 
 int sock;
 bt_config_t config;
+slist *has_chunk_list;
 
 void peer_run(bt_config_t *config);
 
 int main(int argc, char **argv)
 {
+  has_chunk_list = NULL;
+
   bt_init(&config, argc, argv);
 
   DPRINTF(DEBUG_INIT, "peer.c main beginning\n");
@@ -56,6 +59,60 @@ int main(int argc, char **argv)
   return 0;
 }
 
+void init_has_chunk_list()
+{
+  if (has_chunk_list!=NULL)
+  {
+    return;
+  }
+  has_chunk_list = malloc(sizeof(slist));
+  slist_init(has_chunk_list);
+
+  char buf[MAX_LINE];
+  FILE *fp;
+
+  char *has_chunk_file = config.has_chunk_file;
+  if ((fp = fopen(has_chunk_file, "r")) == NULL)
+  {
+    perror("Fail to read chunkfile. ");
+    exit(1);
+  }
+
+  while (fgets(buf, MAX_LINE, fp) != NULL)
+  {
+    char *chunk = malloc(20);
+    memcpy(chunk, buf + 2, 20);
+    slist_push_back(has_chunk_list, chunk);
+  }
+}
+
+void send_ihave(slist *ihave_chunk_list, struct sockaddr_in to)
+{
+  DPRINTF(4,"before size\n");
+  int chunk_num = slist_size(ihave_chunk_list);
+  DPRINTF(4,"size: %d\n", chunk_num);
+  char *data = (char *)malloc(4 + chunk_num * 20);
+  char* temp = data;
+  *(uint8_t *)data = chunk_num;
+  *(uint8_t *)(data + 1) = 0;
+  *(uint16_t *)(data + 2) = 0;
+
+  for (int i = 0; i < chunk_num; i++)
+  {
+    char *chunk = slist_find(ihave_chunk_list, i)->data;
+    DPRINTF(4, "!%20.20s\n", chunk);
+    DPRINTF(4, "strlen(chunk): %d\n", strlen(chunk));
+    memcpy(data + 4 + 20 * i, chunk, strlen(chunk)-1);
+  }
+  package_t* ihave_package = malloc(sizeof(package_t));
+  DPRINTF(4, "before init package\n");
+  init_package(ihave_package, 1, 16, temp, chunk_num);
+  DPRINTF(4, "after init package\n");
+  char *msg = get_msg(ihave_package, 1);
+  DPRINTF(4, "after get msg\n");
+  spiffy_sendto(sock, msg, ihave_package->total_packet_length, 0, (struct sockaddr *)&to, sizeof(to));
+}
+
 void process_inbound_udp(int sock)
 {
 #define BUFLEN 1500
@@ -76,7 +133,6 @@ void process_inbound_udp(int sock)
   uint8_t version = *(uint8_t *)(buf + 2);
   uint8_t package_type = *(uint8_t *)(buf + 3);
   uint16_t header_length = ntohs(*(uint16_t *)(buf + 4));
-  DPRINTF(4,"header_length before: %d\n",*(uint16_t *)(buf + 4));
   uint16_t total_packet_length = ntohs(*(uint16_t *)(buf + 6));
   uint32_t seq_number = ntohl(*(uint32_t *)(buf + 8));
   uint32_t ack_number = ntohl(*(uint32_t *)(buf + 12));
@@ -99,11 +155,32 @@ void process_inbound_udp(int sock)
   DPRINTF(4, "ack_number: %d\n", ack_number);
   switch (package_type)
   {
-  case 0: //WHOHAS
-    for (int i = 16; i < total_packet_length; i += 20)
-    {
+  case 0: //receiving WHOHAS
+    init_has_chunk_list();
 
+    uint8_t chunk_num = *(uint8_t *)(buf + 16);
+    //ignoring the rest in this row
+
+    slist* ihave_chunk_list = malloc(sizeof(slist));
+    slist_init(ihave_chunk_list);
+    DPRINTF(4, "ihave_chunk_list\n");
+    DPRINTF(4,"has_chunk_list size: %d\n", slist_size(has_chunk_list));
+    for (int i = 20; i < total_packet_length; i += 20)
+    {
+      char *chunk_hash = malloc(20);
+      memcpy(chunk_hash, buf+i, 20);
+      DPRINTF(4,"i: %d, chunk_hash: %20.20s\n",i,chunk_hash);
+      DPRINTF(4, "before- strlen(chunk_hash): %d\n", strlen(chunk_hash));
+      int result = slist_search(has_chunk_list, chunk_hash, 20);
+      DPRINTF(4,"%d\n", result);
+      if (result == -1)
+        continue;
+      else
+      {
+        slist_push_back(ihave_chunk_list, chunk_hash);
+      }
     }
+    send_ihave(ihave_chunk_list, from);
   }
 }
 
@@ -111,26 +188,26 @@ void send_whohas(char *chunkfile)
 {
   char buf[MAX_LINE];
   FILE *fp;
-  
+
   slist *chunk_hashes = malloc(sizeof(slist));
-  
+
   slist_init(chunk_hashes);
-  
+
   if ((fp = fopen(chunkfile, "r")) == NULL)
   {
     perror("Fail to read chunkfile. ");
     exit(1);
   }
-  
+
   while (fgets(buf, MAX_LINE, fp) != NULL)
   {
-    char* chunk = malloc(20);
-    memcpy(chunk,buf+2,20);
+    char *chunk = malloc(20);
+    memcpy(chunk, buf + 2, 20);
     slist_push_back(chunk_hashes, chunk);
   }
   int chunk_num = slist_size(chunk_hashes);
   char *data = (char *)malloc(4 + chunk_num * 20);
-  
+
   char *temp = data;
   *(uint8_t *)data = chunk_num;
   *(uint8_t *)(data + 1) = 0;
@@ -138,9 +215,10 @@ void send_whohas(char *chunkfile)
 
   for (int i = 0; i < chunk_num; i++)
   {
-    char* chunk = slist_find(chunk_hashes,i)->data;
-    DPRINTF(4,"!%s\n",chunk);
-    memcpy(data + 4 + 20 * i, chunk, strlen(chunk));
+    char *chunk = slist_find(chunk_hashes, i)->data;
+    DPRINTF(4, "!%20.20s\n", chunk);
+    DPRINTF(4, "strlen(chunk): %d\n", strlen(chunk));
+    memcpy(data + 4 + 20 * i, chunk, strlen(chunk)-1);
   }
   package_t *whohas_package = malloc(sizeof(package_t));
   init_package(whohas_package, 0, 16, temp, chunk_num);
