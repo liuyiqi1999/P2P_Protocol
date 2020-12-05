@@ -20,6 +20,8 @@ void slist_push_back(slist* s, char* data);
 
 p_slist_node_t slist_pop_front(slist* s);
 
+p_slist_node_t slist_find(slist* s, int index);
+
 int slist_size(slist *s);
 
 void slist_destroy(slist* s);

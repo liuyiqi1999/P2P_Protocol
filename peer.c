@@ -71,43 +71,84 @@ void process_inbound_udp(int sock)
          inet_ntoa(from.sin_addr),
          ntohs(from.sin_port),
          buf);
+
+  uint16_t magic = ntohs(*(uint16_t *)buf);
+  uint8_t version = *(uint8_t *)(buf + 2);
+  uint8_t package_type = *(uint8_t *)(buf + 3);
+  uint16_t header_length = ntohs(*(uint16_t *)(buf + 4));
+  DPRINTF(4,"header_length before: %d\n",*(uint16_t *)(buf + 4));
+  uint16_t total_packet_length = ntohs(*(uint16_t *)(buf + 6));
+  uint32_t seq_number = ntohl(*(uint32_t *)(buf + 8));
+  uint32_t ack_number = ntohl(*(uint32_t *)(buf + 12));
+
+  if (magic != 15441)
+  {
+    DPRINTF(4, "Magic number error! \n");
+    return;
+  }
+  if (version != 1)
+  {
+    DPRINTF(4, "Version error! \n");
+    return;
+  }
+
+  DPRINTF(4, "package_type: %d\n", package_type);
+  DPRINTF(4, "header_length: %d\n", header_length);
+  DPRINTF(4, "total_packet_length: %d\n", total_packet_length);
+  DPRINTF(4, "seq_number: %d\n", seq_number);
+  DPRINTF(4, "ack_number: %d\n", ack_number);
+  switch (package_type)
+  {
+  case 0: //WHOHAS
+    for (int i = 16; i < total_packet_length; i += 20)
+    {
+
+    }
+  }
 }
 
 void send_whohas(char *chunkfile)
 {
   char buf[MAX_LINE];
   FILE *fp;
+  
   slist *chunk_hashes = malloc(sizeof(slist));
   
   slist_init(chunk_hashes);
-
+  
   if ((fp = fopen(chunkfile, "r")) == NULL)
   {
     perror("Fail to read chunkfile. ");
     exit(1);
   }
+  
   while (fgets(buf, MAX_LINE, fp) != NULL)
   {
-    slist_push_back(chunk_hashes, buf);
+    char* chunk = malloc(20);
+    memcpy(chunk,buf+2,20);
+    slist_push_back(chunk_hashes, chunk);
   }
   int chunk_num = slist_size(chunk_hashes);
-  char* data = (char *)malloc(4+chunk_num*4);
-  char* temp = data;
+  char *data = (char *)malloc(4 + chunk_num * 20);
+  
+  char *temp = data;
   *(uint8_t *)data = chunk_num;
-  *(uint8_t *)(data+1) = 0;
-  *(uint16_t *)(data+2) = 0;
-  for(int i=0;i<chunk_num;i++)
-  {
-    *(uint32_t *)(data+4*(i+1)) = slist_pop_front(chunk_hashes)->data;
-  }
+  *(uint8_t *)(data + 1) = 0;
+  *(uint16_t *)(data + 2) = 0;
 
-  package_t* whohas_package = malloc(sizeof(package_t));
-  init_package(whohas_package, 0, 16, temp);
-  char* msg = get_msg(whohas_package, 0);
-  bt_peer_t *peers = config.peers;
-  while(peers->next!=NULL)
+  for (int i = 0; i < chunk_num; i++)
   {
-    spiffy_sendto(sock, msg, strlen(msg), 0, (struct sockaddr *)&peers->addr, sizeof(peers->addr));
+    char* chunk = slist_find(chunk_hashes,i)->data;
+    DPRINTF(4,"!%s\n",chunk);
+    memcpy(data + 4 + 20 * i, chunk, strlen(chunk));
+  }
+  package_t *whohas_package = malloc(sizeof(package_t));
+  init_package(whohas_package, 0, 16, temp, chunk_num);
+  char *msg = get_msg(whohas_package, 0);
+  bt_peer_t *peers = config.peers;
+  while (peers->next != NULL)
+  {
+    spiffy_sendto(sock, msg, whohas_package->total_packet_length, 0, (struct sockaddr *)&peers->addr, sizeof(peers->addr));
     peers = peers->next;
   }
 }
@@ -116,7 +157,6 @@ void process_get(char *chunkfile, char *outputfile)
 {
   send_whohas(chunkfile);
 }
-
 
 void handle_user_input(char *line, void *cbdata)
 {

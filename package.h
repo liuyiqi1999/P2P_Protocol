@@ -14,6 +14,6 @@ typedef struct package
     char *body;
 } package_t;
 
-int init_package(package_t *package, uint8_t type, uint16_t header_len, char *body);
+int init_package(package_t *package, uint8_t type, uint16_t header_len, char *body, int chunk_num);
 
 char *get_msg(package_t *package, uint8_t type);

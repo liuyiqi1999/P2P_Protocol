@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include "slist.h"
+#include "debug.h"
 
-p_slist_node_t new_slist_pnode(char* data)
+p_slist_node_t new_slist_pnode(char *data)
 {
     p_slist_node_t pnode = malloc(sizeof(slist_node_t));
     pnode->data = malloc(strlen(data));
@@ -37,26 +38,41 @@ void slist_push_back(slist *s, char *data)
     }
 }
 
-p_slist_node_t slist_pop_front(slist* s)
+p_slist_node_t slist_pop_front(slist *s)
 {
     assert(s);
-    if(s->head==NULL)
+    if (s->head == NULL)
     {
         return NULL;
     }
-    else if (s->head->next==NULL)
+    else if (s->head->next == NULL)
     {
         p_slist_node_t tmp = s->head;
-        free(s->head);
-        s->head=NULL;
         return tmp;
     }
     else
     {
         p_slist_node_t p_cur = s->head;
         s->head = p_cur->next;
-        p_slist_node_t tmp = p_cur;
-        free(p_cur);
+        p_cur->next = NULL;
+        return p_cur;
+    }
+}
+
+p_slist_node_t slist_find(slist *s, int index)
+{
+    assert(s);
+    if (s->head == NULL)
+    {
+        return NULL;
+    }
+    else
+    {
+        p_slist_node_t tmp = s->head;
+        for(int i=0;i<index;i++)
+        {
+            tmp = tmp->next;
+        }
         return tmp;
     }
 }
@@ -82,7 +98,7 @@ void slist_destroy(slist *s)
         free(s->head);
         return;
     }
-    while(s->head)
+    while (s->head)
     {
         p_slist_node_t tmp = s->head->next;
         free(s->head);
