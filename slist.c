@@ -5,11 +5,17 @@
 #include "slist.h"
 #include "debug.h"
 
-p_slist_node_t new_slist_pnode(char *data)
+p_slist_node_t new_slist_pnode(char *data, int data_length)
 {
+    DPRINTF(4, "enter new node\n");
     p_slist_node_t pnode = malloc(sizeof(slist_node_t));
-    pnode->data = malloc(strlen(data));
-    strcpy(pnode->data, data);
+    DPRINTF(4, "alloc new pnode, length: %d\n", data_length);
+    pnode->data = malloc(data_length);
+    DPRINTF(4, "alloc data\n");
+    memcpy(pnode->data, data, data_length);
+    DPRINTF(4, "after memcpy\n");
+    pnode->next = NULL;
+    DPRINTF(4, "after next\n");
     return pnode;
 }
 
@@ -19,10 +25,12 @@ void slist_init(slist *s)
     s->head = NULL;
 }
 
-void slist_push_back(slist *s, char *data)
+void slist_push_back(slist *s, char *data, int data_length)
 {
+    DPRINTF(4, "begin push back\n");
     assert(s);
-    p_slist_node_t p_new_node = new_slist_pnode(data);
+    p_slist_node_t p_new_node = new_slist_pnode(data, data_length);
+    DPRINTF(4, "new node data: %s\n");
     if (s->head == NULL)
     {
         s->head = p_new_node;
@@ -30,10 +38,17 @@ void slist_push_back(slist *s, char *data)
     else
     {
         p_slist_node_t p_cur = s->head;
-        while (p_cur->next)
+        DPRINTF(4, "get head\n");
+        if(p_cur->next->data!=NULL)
         {
+            DPRINTF(4, "NOTNULL!\n");
+        }
+        while (p_cur->next!=NULL)
+        {
+            DPRINTF(4, "%s\n", p_cur->next->data);
             p_cur = p_cur->next;
         }
+        DPRINTF(4, "get p_cur\n");
         p_cur->next = p_new_node;
     }
 }

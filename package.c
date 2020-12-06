@@ -51,10 +51,7 @@ char *get_msg(package_t *package, uint8_t type)
     *(uint16_t *)(c + 6) = htons(package->total_packet_length);
     *(uint32_t *)(c + 8) = htonl(package->seq_number);
     *(uint32_t *)(c + 12) = htonl(package->ack_number);
-    DPRINTF(4, "get msg, after header\n");
     c = c + package->header_length;
-    DPRINTF(4, "before body\n");
     memcpy(c,package->body,(package->total_packet_length-package->header_length));
-    DPRINTF(4,"sending header length %d\n", *(uint16_t*)(tempc+4));
     return tempc;
 }
