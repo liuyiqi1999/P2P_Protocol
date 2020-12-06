@@ -88,9 +88,7 @@ void init_has_chunk_list()
 
 void send_ihave(slist *ihave_chunk_list, struct sockaddr_in to)
 {
-  DPRINTF(4,"before size\n");
   int chunk_num = slist_size(ihave_chunk_list);
-  DPRINTF(4,"size: %d\n", chunk_num);
   char *data = (char *)malloc(4 + chunk_num * 20);
   char* temp = data;
   *(uint8_t *)data = chunk_num;
@@ -100,17 +98,20 @@ void send_ihave(slist *ihave_chunk_list, struct sockaddr_in to)
   for (int i = 0; i < chunk_num; i++)
   {
     char *chunk = slist_find(ihave_chunk_list, i)->data;
-    DPRINTF(4, "!%20.20s\n", chunk);
-    DPRINTF(4, "strlen(chunk): %d\n", strlen(chunk));
     memcpy(data + 4 + 20 * i, chunk, strlen(chunk)-1);
   }
   package_t* ihave_package = malloc(sizeof(package_t));
-  DPRINTF(4, "before init package\n");
   init_package(ihave_package, 1, 16, temp, chunk_num);
-  DPRINTF(4, "after init package\n");
   char *msg = get_msg(ihave_package, 1);
-  DPRINTF(4, "after get msg\n");
   spiffy_sendto(sock, msg, ihave_package->total_packet_length, 0, (struct sockaddr *)&to, sizeof(to));
+}
+
+void send_get(char* chunk_hash, struct sockaddr_in to)
+{
+  package_t* get_package = malloc(sizeof(package_t));
+  init_package(get_package, 2, 16, chunk_hash, 1);
+  char *msg = get_msg(get_package, 2);
+  spiffy_sendto(sock, msg, get_package->total_packet_length, 0, (struct sockaddr *)&to, sizeof(to));
 }
 
 void process_inbound_udp(int sock)
@@ -163,16 +164,11 @@ void process_inbound_udp(int sock)
 
     slist* ihave_chunk_list = malloc(sizeof(slist));
     slist_init(ihave_chunk_list);
-    DPRINTF(4, "ihave_chunk_list\n");
-    DPRINTF(4,"has_chunk_list size: %d\n", slist_size(has_chunk_list));
     for (int i = 20; i < total_packet_length; i += 20)
     {
       char *chunk_hash = malloc(20);
       memcpy(chunk_hash, buf+i, 20);
-      DPRINTF(4,"i: %d, chunk_hash: %20.20s\n",i,chunk_hash);
-      DPRINTF(4, "before- strlen(chunk_hash): %d\n", strlen(chunk_hash));
       int result = slist_search(has_chunk_list, chunk_hash, 20);
-      DPRINTF(4,"%d\n", result);
       if (result == -1)
         continue;
       else
@@ -181,6 +177,16 @@ void process_inbound_udp(int sock)
       }
     }
     send_ihave(ihave_chunk_list, from);
+    break;
+  case 1: //receiving IHAVE
+    uint8_t chunk_num = *(uint8_t *)(buf+16);
+
+    for(int i=20;i<total_packet_length;i+=20)
+    {
+      char *chunk_hash = malloc(20);
+      memcpy(chunk_hash, buf+i, 20);
+      send_get(chunk_hash, from);
+    }
   }
 }
 
@@ -216,8 +222,6 @@ void send_whohas(char *chunkfile)
   for (int i = 0; i < chunk_num; i++)
   {
     char *chunk = slist_find(chunk_hashes, i)->data;
-    DPRINTF(4, "!%20.20s\n", chunk);
-    DPRINTF(4, "strlen(chunk): %d\n", strlen(chunk));
     memcpy(data + 4 + 20 * i, chunk, strlen(chunk)-1);
   }
   package_t *whohas_package = malloc(sizeof(package_t));

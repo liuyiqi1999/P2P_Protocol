@@ -18,6 +18,11 @@ int init_package(package_t *package, uint8_t type, uint16_t header_len, char *bo
         package->seq_number = 0;
         package->ack_number = 0;
         break;
+    case 2: //GET
+        package->total_packet_length = header_len + 20;
+        package->seq_number = 0;
+        package->ack_number = 0;
+        break;
     case 3: //DATA
         package->seq_number = 24;
         package->ack_number = 0;
