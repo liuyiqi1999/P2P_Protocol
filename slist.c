@@ -7,15 +7,10 @@
 
 p_slist_node_t new_slist_pnode(char *data, int data_length)
 {
-    DPRINTF(4, "enter new node\n");
     p_slist_node_t pnode = malloc(sizeof(slist_node_t));
-    DPRINTF(4, "alloc new pnode, length: %d\n", data_length);
     pnode->data = malloc(data_length);
-    DPRINTF(4, "alloc data\n");
     memcpy(pnode->data, data, data_length);
-    DPRINTF(4, "after memcpy\n");
     pnode->next = NULL;
-    DPRINTF(4, "after next\n");
     return pnode;
 }
 
@@ -27,10 +22,8 @@ void slist_init(slist *s)
 
 void slist_push_back(slist *s, char *data, int data_length)
 {
-    DPRINTF(4, "begin push back\n");
     assert(s);
     p_slist_node_t p_new_node = new_slist_pnode(data, data_length);
-    DPRINTF(4, "new node data: %s\n");
     if (s->head == NULL)
     {
         s->head = p_new_node;
@@ -38,18 +31,55 @@ void slist_push_back(slist *s, char *data, int data_length)
     else
     {
         p_slist_node_t p_cur = s->head;
-        DPRINTF(4, "get head\n");
-        if(p_cur->next->data!=NULL)
+        while (p_cur->next)
         {
-            DPRINTF(4, "NOTNULL!\n");
-        }
-        while (p_cur->next!=NULL)
-        {
-            DPRINTF(4, "%s\n", p_cur->next->data);
             p_cur = p_cur->next;
         }
-        DPRINTF(4, "get p_cur\n");
         p_cur->next = p_new_node;
+    }
+}
+
+void slist_pop_index(slist*s, int index)
+{
+    assert(s);
+    if(s->head==NULL||index<0)
+    {
+        return;
+    }
+    else
+    {
+        if(index==0)
+        {
+            slist_pop_front(s);
+        }
+        else
+        {
+            p_slist_node_t t = slist_find(s, index);
+            p_slist_node_t last = slist_find(s, index-1);
+            if(t->next!=NULL)
+            {
+                last->next = t->next;
+            }
+            else
+            {
+                last->next = NULL;
+            }
+        }
+    }
+}
+
+void slist_replace_index(slist *s, int index, char *data, int length)
+{
+    assert(s);
+
+    p_slist_node_t old_node = slist_find(s, index);
+    if(old_node==NULL)
+        return;
+    else
+    {
+        free(old_node->data);
+        old_node->data = malloc(length);
+        memcpy(old_node->data, data, length);
     }
 }
 
@@ -97,7 +127,7 @@ int slist_search(slist *s, char *data, int length)
     assert(s);
     if (s->head == NULL)
     {
-        return NULL;
+        return -1;
     }
     else
     {
@@ -105,7 +135,6 @@ int slist_search(slist *s, char *data, int length)
         int count = 0;
         while (tmp != NULL)
         {
-            DPRINTF(4,"tmp->data: %20.20s, data: %20.20s\n", tmp->data, data);
             if (strncmp(tmp->data, data, 20) == 0)
             {
                 return count;

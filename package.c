@@ -24,10 +24,17 @@ int init_package(package_t *package, uint8_t type, uint16_t header_len, char *bo
         package->ack_number = 0;
         break;
     case 3: //DATA
-        package->seq_number = 24;
+        package->total_packet_length = header_len + 1024;
+        package->seq_number = chunk_num;
         package->ack_number = 0;
         break;
+    case 4: //ACK
+        package->total_packet_length = header_len;
+        package->seq_number = 0;
+        package->ack_number = chunk_num;
+        break;
     default:
+        package->total_packet_length = header_len;
         package->seq_number = 0;
         package->ack_number = 0;
         break;

@@ -1,9 +1,9 @@
 # Some variables
 CC 		= gcc
 CFLAGS		= -g -Wall -DDEBUG
-LDFLAGS		= -lm
+LDFLAGS		= -lm -lrt
 TESTDEFS	= -DTESTING			# comment this out to disable debugging code
-OBJS		= peer.o bt_parse.o spiffy.o debug.o input_buffer.o chunk.o sha.o slist.o package.o
+OBJS		= peer.o bt_parse.o spiffy.o debug.o input_buffer.o chunk.o sha.o slist.o package.o state.o timer.o
 MK_CHUNK_OBJS   = make_chunks.o chunk.o sha.o
 
 BINS            = peer make-chunks
